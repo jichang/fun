@@ -10,8 +10,22 @@ export type Err<E> = {
 
 export type Result<E, T> = Ok<T> | Err<E>;
 
+export function ok<E, T>(value: T): Result<E, T> {
+  return {
+    tag: "ok",
+    value,
+  };
+}
+
 export function isOk<E, T>(result: Result<E, T>): result is Ok<T> {
   return result.tag === "ok";
+}
+
+export function err<E, T>(value: E): Result<E, T> {
+  return {
+    tag: "err",
+    value,
+  };
 }
 
 export function isErr<E, T>(result: Result<E, T>): result is Err<E> {
