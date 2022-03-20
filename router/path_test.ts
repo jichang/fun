@@ -3,20 +3,20 @@ import { isOk, isErr } from "../base/result.ts";
 import {
   any,
   end,
-  constant,
+  literal,
   integer,
-  float,
+  decimal,
   bigint,
-  sequence,
+  combine,
   forward,
   choose,
 } from "./path.ts";
 import type { PathParserError } from "./path.ts";
 import type { Err } from "../base/result.ts";
 
-Deno.test("constant should return Ok<T> for matched segment", () => {
+Deno.test("literal should return Ok<T> for matched segment", () => {
   const segment = "any segment";
-  const parser = constant(segment);
+  const parser = literal(segment);
   const [result, segments] = parser(["any segment"]);
   assertEquals(isOk(result), true);
   assertEquals(result.value, "any segment");
@@ -24,10 +24,10 @@ Deno.test("constant should return Ok<T> for matched segment", () => {
 });
 
 Deno.test(
-  "constant should return Err<ParserError> for unmatched segment",
+  "literal should return Err<ParserError> for unmatched segment",
   () => {
-    const literal = "any segment";
-    const parser = constant(literal);
+    const target = "any segment";
+    const parser = literal(target);
     const segment = "another segment";
     const [result, segments] = parser([segment]) as [
       Err<PathParserError>,
@@ -36,7 +36,11 @@ Deno.test(
     assertEquals(isErr(result), true);
     assertEquals(
       result.value.message,
-      `segment ${segment} does not match expected literal ${literal}`
+      `can not parse path segment another segment`
+    );
+    assertEquals(
+      result.value.inner?.message,
+      "expected any segment, but found another segment"
     );
     assertEquals(segments.length, 1);
     assertEquals(segments[0], segment);
@@ -70,7 +74,11 @@ Deno.test("end should return Err<ParserError> for non-empty segment", () => {
   assertEquals(isErr(result), true);
   assertEquals(
     result.value.message,
-    `expect the end of segments, but found ${segment}`
+    `can not parse path segment another segment`
+  );
+  assertEquals(
+    result.value.inner?.message,
+    "expected undefined, but found another segment"
   );
   assertEquals(segments.length, 1);
   assertEquals(segments[0], segment);
@@ -89,7 +97,7 @@ Deno.test(
   "integer should return Err<ParserError> for integer-unlike segment",
   () => {
     const parser = integer();
-    const segment = "hello";
+    const segment = "another segment";
     const [result, segments] = parser([segment]) as [
       Err<PathParserError>,
       string[]
@@ -97,15 +105,19 @@ Deno.test(
     assertEquals(isErr(result), true);
     assertEquals(
       result.value.message,
-      `segment ${segment} can not be parsed as integer`
+      `can not parse path segment another segment`
+    );
+    assertEquals(
+      result.value.inner?.message,
+      "another segment is not valid integer format"
     );
     assertEquals(segments.length, 1);
     assertEquals(segments[0], segment);
   }
 );
 
-Deno.test("float should return Ok<T> for float-like segment", () => {
-  const parser = float();
+Deno.test("decimal should return Ok<T> for decimal-like segment", () => {
+  const parser = decimal();
   const [result, segments] = parser(["9.9"]);
   assertEquals(isOk(result), true);
   assertEquals(result.value, 9.9);
@@ -113,10 +125,10 @@ Deno.test("float should return Ok<T> for float-like segment", () => {
 });
 
 Deno.test(
-  "float should return Err<ParserError> for float-unlike segment",
+  "decimal should return Err<ParserError> for decimal-unlike segment",
   () => {
-    const parser = float();
-    const segment = "hello";
+    const parser = decimal();
+    const segment = "another segment";
     const [result, segments] = parser([segment]) as [
       Err<PathParserError>,
       string[]
@@ -124,7 +136,11 @@ Deno.test(
     assertEquals(isErr(result), true);
     assertEquals(
       result.value.message,
-      `segment ${segment} can not be parsed as float`
+      `can not parse path segment another segment`
+    );
+    assertEquals(
+      result.value.inner?.message,
+      "another segment is not valid decimal format"
     );
     assertEquals(segments.length, 1);
     assertEquals(segments[0], segment);
@@ -143,7 +159,7 @@ Deno.test(
   "bigint should return Err<ParserError> for bigint-unlike segment",
   () => {
     const parser = bigint();
-    const segment = "hello";
+    const segment = "another segment";
     const [result, segments] = parser([segment]) as [
       Err<PathParserError>,
       string[]
@@ -151,7 +167,11 @@ Deno.test(
     assertEquals(isErr(result), true);
     assertEquals(
       result.value.message,
-      `segment ${segment} can not be parsed as bigint`
+      `can not parse path segment another segment`
+    );
+    assertEquals(
+      result.value.inner?.message,
+      "another segment is not valid big int format"
     );
     assertEquals(segments.length, 1);
     assertEquals(segments[0], segment);
@@ -159,7 +179,7 @@ Deno.test(
 );
 
 Deno.test("sequence should return Ok<T> for matched segments", () => {
-  const parser = sequence([integer(), float(), bigint()]);
+  const parser = combine([integer(), decimal(), bigint()]);
   const [result, segments] = parser(["100", "100.0", "100000000000000000000"]);
   assertEquals(isOk(result), true);
   assertEquals(result.value, [100, 100.0, BigInt("100000000000000000000")]);
@@ -169,15 +189,16 @@ Deno.test("sequence should return Ok<T> for matched segments", () => {
 Deno.test(
   "sequence should return Err<ParserError> for unmatched segments",
   () => {
-    const parser = sequence([integer(), float()]);
+    const parser = combine([integer(), decimal()]);
     const [result, segments] = parser(["aaa", "100.0"]) as [
       Err<PathParserError>,
       string[]
     ];
     assertEquals(isErr(result), true);
+    assertEquals(result.value.message, `can not parse path segment aaa`);
     assertEquals(
-      result.value.message,
-      `segment aaa can not be parsed as integer`
+      result.value.inner?.message,
+      "aaa is not valid integer format"
     );
     assertEquals(segments.length, 2);
   }
@@ -185,7 +206,7 @@ Deno.test(
 
 Deno.test("forward should return Ok<T> for matched segments", () => {
   const parser = forward(integer(), (_num: number) => {
-    return sequence([float(), bigint()]);
+    return combine([decimal(), bigint()]);
   });
   const [result, segments] = parser(["100", "100.0", "100000000000000000000"]);
   assertEquals(isOk(result), true);
@@ -197,23 +218,24 @@ Deno.test(
   "forward should return Err<ParserError> for unmatched segments",
   () => {
     const parser = forward(integer(), (_num: number) => {
-      return sequence([float(), bigint()]);
+      return combine([decimal(), bigint()]);
     });
     const [result, segments] = parser(["aaa", "100.0"]) as [
       Err<PathParserError>,
       string[]
     ];
     assertEquals(isErr(result), true);
+    assertEquals(result.value.message, `can not parse path segment aaa`);
     assertEquals(
-      result.value.message,
-      `segment aaa can not be parsed as integer`
+      result.value.inner?.message,
+      "aaa is not valid integer format"
     );
     assertEquals(segments.length, 2);
   }
 );
 
 Deno.test("choose should return Ok<T> for matched segments", () => {
-  const parser = choose([integer(), float()]);
+  const parser = choose([integer(), decimal()]);
   const [result, segments] = parser(["100.0"]);
   assertEquals(isOk(result), true);
   assertEquals(result.value, 100);

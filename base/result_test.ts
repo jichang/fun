@@ -4,11 +4,11 @@ import { map, isOk, isErr } from "./result.ts";
 
 Deno.test("map function should call mapper for Ok<T> value", () => {
   const ok: Result<Error, number> = {
-    tag: "ok",
+    kind: "ok",
     value: 0,
   };
   const result = map((value: number) => {
-    return ++value;
+    return value + 1;
   }, ok);
   assertEquals(isOk(result), true);
   assertEquals(result.value, 1);
@@ -16,7 +16,7 @@ Deno.test("map function should call mapper for Ok<T> value", () => {
 
 Deno.test("map function should not call mapper for Err<T> value", () => {
   const ok: Result<number, number> = {
-    tag: "err",
+    kind: "err",
     value: 0,
   };
   const result = map((value: number) => {

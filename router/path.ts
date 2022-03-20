@@ -1,4 +1,13 @@
 // deno-lint-ignore-file no-explicit-any
+import {
+  Parser,
+  equal as equalParser,
+  any as anyParser,
+  integer as integerParser,
+  decimal as decimalParser,
+  bigint as bigintParser,
+  empty as emptyParser,
+} from "../base/parser.ts";
 import { isErr, isOk, ok, err, Result } from "../base/result.ts";
 import { RouteError, SyncRoute } from "./route.ts";
 
@@ -15,233 +24,64 @@ export type PathParserResult<T> = [Result<PathParserError, T>, string[]];
 
 export type PathParser<T> = (segments: string[]) => PathParserResult<T>;
 
-export function constant(literal: string): PathParser<string> {
+export function segment<T>(parser: Parser<T>): PathParser<T> {
   return (segments: string[]) => {
-    if (segments.length === 0) {
-      return [
-        {
-          tag: "err",
-          value: new PathParserError("found the end of segments"),
-        },
-        segments,
-      ];
-    }
-
     const segment = segments[0];
-    if (segment === literal) {
-      return [
-        {
-          tag: "ok",
-          value: segment,
-        },
-        segments.slice(1),
-      ];
+    const result = parser(segment);
+    if (isOk(result)) {
+      return [result, segments.slice(1)];
     } else {
       return [
-        {
-          tag: "err",
-          value: new PathParserError(
-            `segment ${segment} does not match expected literal ${literal}`
-          ),
-        },
+        err(
+          new PathParserError(
+            `can not parse path segment ${segment}`,
+            result.value
+          )
+        ),
         segments,
       ];
     }
   };
 }
 
-export function any(): PathParser<string> {
-  return (segments: string[]) => {
-    if (segments.length === 0) {
-      return [
-        {
-          tag: "err",
-          value: new PathParserError("found the end of segments"),
-        },
-        segments,
-      ];
-    }
-
-    const segment = segments[0];
-    return [
-      {
-        tag: "ok",
-        value: segment,
-      },
-      segments.slice(1),
-    ];
-  };
+export function literal(target: string): PathParser<string> {
+  return segment(equalParser(target));
 }
 
-export function end(): PathParser<undefined> {
-  return (segments: string[]) => {
-    if (segments.length !== 0) {
-      return [
-        {
-          tag: "err",
-          value: new PathParserError(
-            `expect the end of segments, but found ${segments[0]}`
-          ),
-        },
-        segments,
-      ];
-    }
-
-    return [
-      {
-        tag: "ok",
-        value: undefined,
-      },
-      segments.slice(1),
-    ];
-  };
+export function integer(): PathParser<number> {
+  return segment(integerParser);
 }
 
-export function integer(radix = 10): PathParser<number> {
-  return (segments: string[]) => {
-    if (segments.length === 0) {
-      return [
-        {
-          tag: "err",
-          value: new PathParserError("found the end of segments"),
-        },
-        segments,
-      ];
-    }
-
-    try {
-      const segment = segments[0];
-      const num = parseInt(segment, radix);
-      if (isNaN(num)) {
-        return [
-          {
-            tag: "err",
-            value: new PathParserError(
-              `segment ${segment} can not be parsed as integer`
-            ),
-          },
-          segments,
-        ];
-      }
-
-      return [
-        {
-          tag: "ok",
-          value: num,
-        },
-        segments.slice(1),
-      ];
-    } catch (e) {
-      return [
-        {
-          tag: "err",
-          value: e,
-        },
-        segments,
-      ];
-    }
-  };
-}
-
-export function float(): PathParser<number> {
-  return (segments: string[]) => {
-    if (segments.length === 0) {
-      return [
-        {
-          tag: "err",
-          value: new PathParserError("found the end of segments"),
-        },
-        segments,
-      ];
-    }
-
-    try {
-      const segment = segments[0];
-      const num = parseFloat(segment);
-      if (isNaN(num)) {
-        return [
-          {
-            tag: "err",
-            value: new PathParserError(
-              `segment ${segment} can not be parsed as float`
-            ),
-          },
-          segments,
-        ];
-      }
-
-      return [
-        {
-          tag: "ok",
-          value: num,
-        },
-        segments.slice(1),
-      ];
-    } catch (e) {
-      return [
-        {
-          tag: "err",
-          value: e,
-        },
-        segments,
-      ];
-    }
-  };
+export function decimal(): PathParser<number> {
+  return segment(decimalParser);
 }
 
 export function bigint(): PathParser<BigInt> {
-  return (segments: string[]) => {
-    if (segments.length === 0) {
-      return [
-        {
-          tag: "err",
-          value: new PathParserError("found the end of segments"),
-        },
-        segments,
-      ];
-    }
-
-    const segment = segments[0];
-    try {
-      const num = BigInt(segment);
-
-      return [
-        {
-          tag: "ok",
-          value: num,
-        },
-        segments.slice(1),
-      ];
-    } catch (e) {
-      return [
-        {
-          tag: "err",
-          value: new PathParserError(
-            `segment ${segment} can not be parsed as bigint`,
-            e
-          ),
-        },
-        segments,
-      ];
-    }
-  };
+  return segment(bigintParser);
 }
 
-export type SequenceParserValue<T extends PathParser<any>[]> = T extends []
-  ? []
-  : T extends [PathParser<infer U>]
-  ? [U]
-  : T extends [PathParser<infer U>, PathParser<infer T>]
-  ? [U, T]
-  : T extends [PathParser<infer U>, PathParser<infer T>, ...infer Rest]
-  ? Rest extends PathParser<any>[]
-    ? [U, T, ...SequenceParserValue<Rest>]
-    : []
-  : [];
+export function any(): PathParser<string | undefined> {
+  return segment(anyParser);
+}
 
-export function sequence<T extends PathParser<any>[]>(
+export function end(): PathParser<undefined> {
+  return segment(emptyParser);
+}
+
+export type Combine<T extends readonly PathParser<any>[]> =
+  T extends readonly []
+    ? []
+    : T extends readonly [PathParser<infer U>]
+    ? [U]
+    : T extends readonly [PathParser<infer U>, ...infer Rest]
+    ? Rest extends readonly PathParser<any>[]
+      ? [U, ...Combine<Rest>]
+      : []
+    : [];
+
+export function combine<T extends readonly PathParser<any>[]>(
   parsers: T
-): PathParser<SequenceParserValue<T>> {
+): PathParser<Combine<T>> {
   return (segments: string[]) => {
     const value = parsers.reduce<PathParserResult<any[]>>(
       (acc: PathParserResult<any[]>, parser: PathParser<any>) => {
@@ -254,37 +94,28 @@ export function sequence<T extends PathParser<any>[]>(
           if (isErr(value2)) {
             return result;
           } else {
-            return [
-              {
-                tag: "ok",
-                value: [...value1.value, value2.value],
-              },
-              segments2,
-            ];
+            return [ok([...value1.value, value2.value]), segments2];
           }
         }
       },
-      [{ tag: "ok", value: [] }, segments] as PathParserResult<any[]>
+      [ok([]), segments] as PathParserResult<any[]>
     );
 
-    return value as PathParserResult<SequenceParserValue<T>>;
+    return value as PathParserResult<Combine<T>>;
   };
 }
 
 export function forward<T, U>(
-  first: PathParser<T>,
+  start: PathParser<T>,
   generator: (t: T) => PathParser<U>
 ): PathParser<[T, U]> {
   return (segments: string[]) => {
-    const [result1, segments1] = first(segments);
+    const [result1, segments1] = start(segments);
     if (isOk(result1)) {
       const second = generator(result1.value);
       const [result2, segments2] = second(segments1);
       if (isOk(result2)) {
-        return [
-          { tag: "ok", value: [result1.value, result2.value] },
-          segments2,
-        ];
+        return [ok([result1.value, result2.value]), segments2];
       } else {
         return [result2, segments1];
       }
@@ -294,36 +125,28 @@ export function forward<T, U>(
   };
 }
 
-export type ChooseParserValue<T extends PathParser<any>[]> = T extends []
+export type Choose<T extends readonly PathParser<any>[]> = T extends readonly []
   ? undefined
-  : T extends [PathParser<infer U>]
+  : T extends readonly [PathParser<infer U>]
   ? U
-  : T extends [PathParser<infer U>, PathParser<infer T>]
-  ? U | T
-  : T extends [PathParser<infer U>, PathParser<infer T>, ...infer Rest]
-  ? Rest extends PathParser<any>[]
-    ? U | T | ChooseParserValue<Rest>
+  : T extends readonly [PathParser<infer U>, ...infer Rest]
+  ? Rest extends readonly PathParser<any>[]
+    ? U | Choose<Rest>
     : undefined
   : undefined;
 
-export function choose<T extends PathParser<any>[]>(
+export function choose<T extends readonly PathParser<any>[]>(
   parsers: T
-): PathParser<ChooseParserValue<T>> {
+): PathParser<Choose<T>> {
   return (segments: string[]) => {
     for (const parser of parsers) {
       const [result, segments1] = parser(segments);
       if (isOk(result)) {
-        return [result, segments1] as PathParserResult<ChooseParserValue<T>>;
+        return [result, segments1] as PathParserResult<Choose<T>>;
       }
     }
 
-    return [
-      {
-        tag: "err",
-        value: new PathParserError("no parser match the segments"),
-      },
-      segments,
-    ];
+    return [err(new PathParserError("no parser match the segments")), segments];
   };
 }
 
@@ -331,7 +154,7 @@ export function path<C, T>(parser: PathParser<T>): SyncRoute<C, T> {
   return (request: Request) => {
     const url = new URL(request.url);
     const segments = url.pathname.split("/");
-    const [result] = parser(segments);
+    const [result] = parser(segments.slice(1));
     if (isOk(result)) {
       return ok(result.value);
     } else {

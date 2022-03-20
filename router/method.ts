@@ -1,10 +1,10 @@
 import { RouteError, SyncRoute } from "./route.ts";
 import { ok, err, Result } from "../base/result.ts";
 
-export function httpMethod<C>(method: string): SyncRoute<C, boolean> {
-  return (request: Request): Result<RouteError, boolean> => {
+export function method<C>(method: string): SyncRoute<C, string> {
+  return (request: Request): Result<RouteError, string> => {
     if (request.method === method) {
-      return ok(true);
+      return ok(method);
     } else {
       return err(
         new RouteError(
@@ -14,12 +14,3 @@ export function httpMethod<C>(method: string): SyncRoute<C, boolean> {
     }
   };
 }
-
-export const OPTIONS = httpMethod("OPTIONS");
-export const HEAD = httpMethod("HEAD");
-export const GET = httpMethod("GET");
-export const POST = httpMethod("POST");
-export const PUT = httpMethod("PUT");
-export const PATCH = httpMethod("PATCH");
-export const DELETE = httpMethod("DELETE");
-export const TRACE = httpMethod("TRACE");

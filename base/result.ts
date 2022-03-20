@@ -1,10 +1,10 @@
 export type Ok<T> = {
-  tag: "ok";
+  kind: "ok";
   value: T;
 };
 
 export type Err<E> = {
-  tag: "err";
+  kind: "err";
   value: E;
 };
 
@@ -12,24 +12,24 @@ export type Result<E, T> = Ok<T> | Err<E>;
 
 export function ok<E, T>(value: T): Result<E, T> {
   return {
-    tag: "ok",
+    kind: "ok",
     value,
   };
 }
 
 export function isOk<E, T>(result: Result<E, T>): result is Ok<T> {
-  return result.tag === "ok";
+  return result.kind === "ok";
 }
 
 export function err<E, T>(value: E): Result<E, T> {
   return {
-    tag: "err",
+    kind: "err",
     value,
   };
 }
 
 export function isErr<E, T>(result: Result<E, T>): result is Err<E> {
-  return result.tag === "err";
+  return result.kind === "err";
 }
 
 export function map<E, T1, T2>(
@@ -40,7 +40,7 @@ export function map<E, T1, T2>(
     return result;
   } else {
     return {
-      tag: "ok",
+      kind: "ok",
       value: mapper(result.value),
     };
   }
