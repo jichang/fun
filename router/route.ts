@@ -56,7 +56,6 @@ export function route<C, R extends readonly Route<C, any>[]>(
       if (isOk(result)) {
         results.push(result.value);
       } else {
-        console.log(result);
         return result;
       }
     }

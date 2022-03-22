@@ -41,8 +41,14 @@ There are 3 steps you need to do.
       userIdSegment,
     ] as const);
 
+    // match query parameter
+    const queryParams = query({
+      role: equal("admin"),
+    });
+
     // build an route that match GET /api/v1/users/{any integer}
-    const paths = [get, path(pathParser)] as const;
+    const paths = [get, path(pathParser), queryParams] as const;
+
     const userRoute = route<Context, typeof paths>(paths);
    ```
 
@@ -54,14 +60,14 @@ There are 3 steps you need to do.
    // 2nd one is the return value of route parser, in this case
    //   type:    [string, [string, string, string, number]]
    //   parser:  [get,    [api,    v1,     users,  userId]]
-   const userRoute: Route<Context, [string, [string, string, string, number]]>
+   const userRoute: Route<Context, [string, [string, string, string, number], { role: string }]>
    ```
 
    In order to handle the request that match the type of userRoute, you also need to
    provide a function which type should match with userRoute
 
    ```TypeScript
-   function handler(context: Context, params: [string, [string, string, string, number]]>): Response;
+   function handler(context: Context, params: [string, [string, string, string, number], { role: string }]>): Response;
    ```
 
    For example, you can just return context and params in handler
@@ -93,7 +99,7 @@ There are 3 steps you need to do.
 Now, if you visit http://localhost:8080/api/v1/users/100, the response will be
 
 ```JSON
-   {"method":"GET","path":["api","v1","users",100],"context":{"framework":"Fun"}}
+   {"method":"GET","path":["api","v1","users",100],"queryParams":{"role":"admin"},"context":{"framework":"Fun"}}
 ```
 
 Check [./exmple.ts](./example.ts) for a complete example.

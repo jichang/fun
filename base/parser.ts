@@ -1,4 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
+import { Maybe, none, some } from "./maybe.ts";
 import { ok, err, Result, isOk, isErr } from "./result.ts";
 
 export class ParserError extends Error {
@@ -110,6 +111,21 @@ export function not<T>(parser: Parser<T>): Parser<string | undefined> {
           `should not be parsed by parser ${parser}, but found ${str}`
         )
       );
+    }
+  };
+}
+
+export function optional<T>(parser: Parser<T>): Parser<Maybe<T>> {
+  return (str: string | undefined) => {
+    if (str === undefined) {
+      return ok(none);
+    } else {
+      const result = parser(str);
+      if (isErr(result)) {
+        return ok(none);
+      } else {
+        return ok(some(result.value));
+      }
     }
   };
 }

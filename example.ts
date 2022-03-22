@@ -2,6 +2,8 @@ import { method } from "./router/method.ts";
 import { literal, integer, combine, path } from "./router/path.ts";
 import { route } from "./router/route.ts";
 import { App } from "./app.ts";
+import { query } from "./router/query.ts";
+import { equal } from "./base/parser.ts";
 
 type Context = {
   framework: "Fun";
@@ -23,16 +25,27 @@ const pathParser = combine([
   usersSegment,
   userIdSegment,
 ] as const);
-const paths = [get, path(pathParser)] as const;
+
+// match query parameter
+const queryParams = query({
+  role: equal("admin"),
+});
+
+const paths = [get, path(pathParser), queryParams] as const;
 const userRoute = route<Context, typeof paths>(paths);
 
 function handler(
   context: Context,
-  [method, [api, v1, users, userId]]: [string, [string, string, string, number]]
+  [method, [api, v1, users, userId], queryParams]: [
+    string,
+    [string, string, string, number],
+    { role: string }
+  ]
 ) {
   const body = {
     method, // GET
     path: [api, v1, users, userId], // ["api", "v1", "users", 100]
+    queryParams, // { role: 'admin' }
     context,
   };
   return new Response(JSON.stringify(body), {
