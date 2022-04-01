@@ -55,11 +55,13 @@ There are 3 steps you need to do.
    userRoute's type will looks like below
 
    ```TypeScript
-   // Route has 2 generic parameters
+   // Route has 3 generic parameters
    // 1st one is the type of Context we defined above
    // 2nd one is the return value of route parser, in this case
    //   type:    [string, [string, string, string, number]]
    //   parser:  [get,    [api,    v1,     users,  userId]]
+   // 3rd one is the return value of query parameter parser, which is { role: string }, or
+   //   more accurate { role: 'admin' }
    const userRoute: Route<Context, [string, [string, string, string, number], { role: string }]>
    ```
 
@@ -96,7 +98,7 @@ There are 3 steps you need to do.
     });
     ```
 
-Now, if you visit http://localhost:8080/api/v1/users/100, the response will be
+Now, you can start run your code and visit http://localhost:8080/api/v1/users/100, the response will be
 
 ```JSON
    {"method":"GET","path":["api","v1","users",100],"queryParams":{"role":"admin"},"context":{"framework":"Fun"}}

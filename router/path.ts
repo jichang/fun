@@ -68,6 +68,13 @@ export function end(): PathParser<undefined> {
   return segment(emptyParser);
 }
 
+export function rest(): PathParser<string> {
+  return (segments: string[]): PathParserResult<string> => {
+    const result = ok(segments.join('/')) as Result<PathParserError, string>;
+    return [result, [] as string[]];
+  }
+}
+
 export type Combine<T extends readonly PathParser<any>[]> =
   T extends readonly []
     ? []

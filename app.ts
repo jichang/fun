@@ -1,4 +1,4 @@
-import { serve, ServeInit } from "https://deno.land/std@0.130.0/http/server.ts";
+import { serve, ServeInit } from "https://deno.land/std@0.133.0/http/server.ts";
 import { isOk } from "./base/result.ts";
 import { Route } from "./router/route.ts";
 
